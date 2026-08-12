@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vgosti
+      POSTGRES_PASSWORD: vgosti
+      POSTGRES_DB: vgosti
+    ports:
+      - "5433:5432"
+    volumes:
+      - vgosti_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vgosti -d vgosti"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql://vgosti:vgosti@postgres:5432/vgosti?schema=public"
+      # Local defaults — production overlay / server .env must override these.
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-dev-access-secret-change-me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-me}
+      JWT_ACCESS_TTL: "15m"
+      JWT_REFRESH_TTL: "30d"
+      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-development}
+      # Only honored when NODE_ENV !== production (see AuthService).
+      AUTH_DEV_CODE: ${AUTH_DEV_CODE:-0000}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_SUPPORT_CHAT_ID: ${TELEGRAM_SUPPORT_CHAT_ID:-}
+      SMSPILOT_API_KEY: ${SMSPILOT_API_KEY:-}
+      SMSPILOT_FROM: ${SMSPILOT_FROM:-}
+      OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:-}
+      YANDEX_CLIENT_ID: ${YANDEX_CLIENT_ID:-}
+      YANDEX_CLIENT_SECRET: ${YANDEX_CLIENT_SECRET:-}
+      VK_CLIENT_ID: ${VK_CLIENT_ID:-}
+      VK_CLIENT_SECRET: ${VK_CLIENT_SECRET:-}
+      # Google/Apple via Firebase Admin (path preferred — mount the JSON file)
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      FIREBASE_SERVICE_ACCOUNT_PATH: ${FIREBASE_SERVICE_ACCOUNT_PATH:-}
+    ports:
+      - "3000:3000"
+    volumes:
+      - vgosti_uploads_data:/app/uploads
+    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+
+volumes:
+  vgosti_postgres_data:
+  vgosti_uploads_data:

@@ -1,0 +1,24 @@
+# Reverse proxy + automatic Let's Encrypt for vgosti.app
+# Used by the `caddy` service in docker-compose.prod.yml.
+#
+# First start: Caddy requests a cert via HTTP-01 on :80.
+# Renewal is automatic.
+
+vgosti.app, www.vgosti.app {
+	encode gzip
+
+	# Nest serves Swagger at /api/docs and API under /api/v1
+	# Static uploads / seed-assets are also on the same app.
+	reverse_proxy api:3000
+
+	header {
+		# Helpful defaults; Nest still owns CORS for the API.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

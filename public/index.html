@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Пульс — афиша Минска</title>
+  <meta name="description" content="Концерты, тусовки и мероприятия в Минске. Карта, лента, истории и чаты." />
+  <meta property="og:title" content="Пульс" />
+  <meta property="og:description" content="Афиша тусовок и концертов Минска" />
+  <meta property="og:image" content="/landing/icon.png" />
+  <link rel="icon" href="/landing/icon.png" type="image/png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Russo+One&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #060607;
+      --surface: #101014;
+      --border: rgba(255,255,255,0.09);
+      --text: #f4f4f5;
+      --muted: #a1a1aa;
+      --dim: #71717a;
+      --purple: #7b35d6;
+      --purple-light: #b56bef;
+      --max: 1120px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; height: auto; }
+
+    .wrap {
+      width: min(var(--max), calc(100% - 32px));
+      margin-inline: auto;
+    }
+
+    .header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 1px solid var(--border);
+      background: rgba(6,6,7,0.88);
+      backdrop-filter: blur(14px);
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 64px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: "Russo One", sans-serif;
+      font-size: 1.05rem;
+      letter-spacing: 0.06em;
+    }
+    .brand img {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+    }
+    .nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .nav a {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--muted);
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+    .nav a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+    .hero {
+      padding: 56px 0 72px;
+      background:
+        radial-gradient(ellipse 80% 60% at 70% -10%, rgba(123,53,214,0.22), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 0% 50%, rgba(123,53,214,0.12), transparent 50%);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(32px, 5vw, 64px);
+      align-items: center;
+    }
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 16px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--purple-light);
+    }
+    .hero h1 {
+      margin: 0 0 20px;
+      font-size: clamp(2.25rem, 5.5vw, 3.75rem);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+    .hero h1 span { color: var(--purple-light); }
+    .hero p {
+      margin: 0 0 32px;
+      max-width: 42ch;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.125rem);
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 20px;
+      border-radius: 12px;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--purple);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #8f45e8; }
+    .btn-secondary {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .btn-secondary:hover { border-color: rgba(255,255,255,0.2); }
+    .note { font-size: 0.8125rem; color: var(--dim); }
+
+    .phone-wrap { display: flex; justify-content: center; }
+    .phone {
+      width: min(100%, 280px);
+      padding: 10px;
+      border-radius: 36px;
+      background: linear-gradient(145deg, #1c1c22, #0e0e12);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.55);
+    }
+    .phone-screen {
+      border-radius: 28px;
+      overflow: hidden;
+      background: #000;
+      aspect-ratio: 472 / 1024;
+    }
+    .phone-screen img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+    }
+
+    .section { padding: 72px 0; }
+    .section-title {
+      margin: 0 0 12px;
+      font-size: clamp(1.75rem, 3vw, 2.25rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .section-lead {
+      margin: 0 0 40px;
+      max-width: 52ch;
+      color: var(--muted);
+    }
+
+    .shots {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .shot {
+      margin: 0;
+    }
+    .shot .frame {
+      border-radius: 20px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #000;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+    }
+    .shot img {
+      width: 100%;
+      aspect-ratio: 472 / 1024;
+      object-fit: cover;
+      object-position: top;
+    }
+    .shot figcaption {
+      margin-top: 12px;
+      text-align: center;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .feature {
+      padding: 24px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .feature h3 {
+      margin: 0 0 8px;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .feature p {
+      margin: 0;
+      font-size: 0.9375rem;
+      color: var(--muted);
+    }
+
+    .cta {
+      margin-bottom: 72px;
+      padding: 48px 32px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      text-align: center;
+    }
+    .cta h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 700;
+    }
+    .cta p { margin: 0 0 24px; color: var(--muted); }
+    .cta .actions { justify-content: center; }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 0 40px;
+    }
+    .footer-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+    .footer-links a:hover { color: var(--purple-light); }
+    .copy {
+      width: 100%;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 0.8125rem;
+      color: var(--dim);
+    }
+
+    @media (max-width: 960px) {
+      .shots { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 860px) {
+      .hero-grid { grid-template-columns: 1fr; }
+      .phone-wrap { order: -1; }
+      .phone { width: min(100%, 240px); }
+      .features { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 520px) {
+      .nav a:not(:last-child) { display: none; }
+      .hero { padding-top: 36px; }
+      .shots { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .cta { padding: 36px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/">
+        <img src="/landing/logo.png" width="40" height="40" alt="" />
+        ПУЛЬС
+      </a>
+      <nav class="nav" aria-label="Навигация">
+        <a href="#app">Приложение</a>
+        <a href="#features">Возможности</a>
+        <a href="/support.html">Поддержка</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <p class="eyebrow">Афиша · Минск</p>
+          <h1>Где сегодня <span>бьётся</span> город</h1>
+          <p>
+            Концерты, вечеринки и локальные события — на карте и в ленте.
+            Записывайтесь, общайтесь, делитесь историями.
+          </p>
+          <div class="actions">
+            <a class="btn btn-primary" href="https://apps.apple.com/by/app/vgosti/id6793836653" target="_blank" rel="noopener">App Store</a>
+            <a class="btn btn-secondary" href="/downloads/vgosti.apk" download>APK Android</a>
+            <span class="note">Google Play — скоро</span>
+          </div>
+        </div>
+        <div class="phone-wrap">
+          <figure class="phone">
+            <div class="phone-screen">
+              <img
+                src="/landing/screenshots/feed.jpg"
+                alt="Лента Пульс"
+                width="472"
+                height="1024"
+                loading="eager"
+                decoding="async"
+              />
+            </div>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="app">
+      <div class="wrap">
+        <h2 class="section-title">Приложение изнутри</h2>
+        <p class="section-lead">Реальные экраны: welcome, лента, карта Минска и профиль.</p>
+        <div class="shots">
+          <figure class="shot">
+            <div class="frame">
+              <img src="/landing/screenshots/welcome.jpg" alt="Экран входа" width="472" height="1024" loading="lazy" decoding="async" />
+            </div>
+            <figcaption>Вход</figcaption>
+          </figure>
+          <figure class="shot">
+            <div class="frame">
+              <img src="/landing/screenshots/feed.jpg" alt="Лента и истории" width="472" height="1024" loading="lazy" decoding="async" />
+            </div>
+            <figcaption>Лента</figcaption>
+          </figure>
+          <figure class="shot">
+            <div class="frame">
+              <img src="/landing/screenshots/map.jpg" alt="Карта Минска" width="472" height="1024" loading="lazy" decoding="async" />
+            </div>
+            <figcaption>Карта</figcaption>
+          </figure>
+          <figure class="shot">
+            <div class="frame">
+              <img src="/landing/screenshots/profile.jpg" alt="Профиль" width="472" height="1024" loading="lazy" decoding="async" />
+            </div>
+            <figcaption>Профиль</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="wrap">
+        <h2 class="section-title">Что внутри</h2>
+        <p class="section-lead">Карта, лента, заявки и чаты — всё вокруг живых событий в городе.</p>
+        <div class="features">
+          <article class="feature">
+            <h3>Карта</h3>
+            <p>Клубы, бары и тусовки рядом — с адресом, временем и фильтрами.</p>
+          </article>
+          <article class="feature">
+            <h3>Лента и истории</h3>
+            <p>Фото и видео от организаторов и гостей — живая афиша города.</p>
+          </article>
+          <article class="feature">
+            <h3>Заявки и чат</h3>
+            <p>Запишитесь на событие — организатор подтвердит, откроется общий чат.</p>
+          </article>
+          <article class="feature">
+            <h3>Места</h3>
+            <p>Клубы и площадки с отзывами после визита.</p>
+          </article>
+          <article class="feature">
+            <h3>Рейтинг</h3>
+            <p>Отзывы о хозяевах и гостях — проще выбирать, куда идти.</p>
+          </article>
+          <article class="feature">
+            <h3>Telegram</h3>
+            <p>Новости и поддержка в <a href="https://t.me/pulse_by_bot" style="color:var(--purple-light)">@pulse_by_bot</a>.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap cta">
+      <h2>Скачайте Пульс</h2>
+      <p>Бесплатно · Минск</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="https://apps.apple.com/by/app/vgosti/id6793836653" target="_blank" rel="noopener">App Store</a>
+        <a class="btn btn-secondary" href="https://t.me/pulse_by_bot" target="_blank" rel="noopener">Telegram</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap footer-row">
+      <div class="footer-links">
+        <a href="/privacy.html">Политика</a>
+        <a href="/terms.html">Условия</a>
+        <a href="/support.html">Поддержка</a>
+        <a href="/delete-account.html">Удаление аккаунта</a>
+        <a href="https://t.me/pulse_by_bot">@pulse_by_bot</a>
+      </div>
+      <p class="copy">© Пульс · pulse.by · Минск, Беларусь</p>
+    </div>
+  </footer>
+</body>
+</html>

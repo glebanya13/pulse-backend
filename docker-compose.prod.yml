@@ -1,0 +1,49 @@
+# Production overlay: HTTPS via Caddy (Let's Encrypt).
+#
+# Usage on the server:
+#   docker compose -p vgosti -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Prerequisites:
+#   - DNS A records for pulse-app.by (and www) → this server
+#   - Ports 80 and 443 free for the caddy container
+#   - firebase-service-account.json present next to docker-compose.yml
+#   - JWT_ACCESS_SECRET / JWT_REFRESH_SECRET set in .env (strong random values)
+
+services:
+  api:
+    environment:
+      NODE_ENV: production
+      # Temporary fixed OTP for App Review (any phone → code 0000). Clear to disable.
+      AUTH_DEV_CODE: ${AUTH_DEV_CODE:-0000}
+      SMSPILOT_API_KEY: ${SMSPILOT_API_KEY}
+      SMSPILOT_FROM: ${SMSPILOT_FROM:-}
+      # Public origin used for OAuth callbacks — set the real secrets in .env
+      OAUTH_REDIRECT_BASE_URL: ${OAUTH_REDIRECT_BASE_URL:-https://pulse-app.by}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      FIREBASE_PROJECT_ID: pulse-by
+      FIREBASE_SERVICE_ACCOUNT_PATH: /app/firebase-service-account.json
+    volumes:
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
+    # Do not publish :3000 on the host — Caddy reaches api:3000 on the compose network.
+    ports: !override []
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - vgosti_caddy_data:/data
+      - vgosti_caddy_config:/config
+
+volumes:
+  vgosti_caddy_data:
+  vgosti_caddy_config:

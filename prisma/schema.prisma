@@ -1,0 +1,903 @@
+// Prisma schema for "В Гости" (Vgosti) backend.
+// See README.md for setup instructions.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+// Informational role label used for dev quick-login and admin gating.
+// Does NOT restrict hosting/guesting capability — any user can still create
+// events or apply to them regardless of role, matching the product's "anyone
+// can be both host and guest" design. ADMIN is the one role that gates
+// anything (AdminGuard).
+enum Role {
+  USER
+  PERFORMER
+  ADMIN
+}
+
+enum EventFormat {
+  IN_PERSON // "в гостях"
+  TAKEAWAY // "на вынос"
+}
+
+enum PriceType {
+  FREE
+  FIXED
+  DONATION
+}
+
+enum GenderRequirement {
+  ANY
+  MALE
+  FEMALE
+  FAMILY
+}
+
+enum PickupMethod {
+  PICKUP_ONLY
+  MEET_AT_DOOR
+}
+
+enum EventStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  /// Auto-flagged or held for admin review — hidden from public afisha.
+  PENDING_REVIEW
+}
+
+enum ApplicationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum GuestRequestType {
+  GENERAL
+  PERSONAL
+}
+
+enum GuestRequestStatus {
+  OPEN
+  OFFERED
+  ACCEPTED
+  DECLINED
+  CLOSED
+}
+
+enum RequestOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum ReviewTargetRole {
+  HOST
+  GUEST
+}
+
+enum NotificationType {
+  APPLICATION_RECEIVED
+  APPLICATION_ACCEPTED
+  APPLICATION_REJECTED
+  NEW_MESSAGE
+  ORDER_OFFERED
+  OFFER_ACCEPTED
+  OFFER_DECLINED
+  RATE_REMINDER
+  NEW_REQUEST_MATCH
+  NEW_REVIEW
+  COMPLAINT_RESOLVED
+  /// Soft “min guests to start cooking” threshold was reached.
+  EVENT_THRESHOLD_REACHED
+  /// Host cancelled an event; accepted (and pending) guests are notified.
+  EVENT_CANCELLED
+  /// Host published a new event; their followers are notified.
+  HOST_NEW_EVENT
+  /// Host marked an accepted guest as a no-show after the event.
+  ATTENDANCE_NO_SHOW
+  /// Host climbed a rung on the author path (Путь автора).
+  AUTHOR_LEVEL_UP
+  /// Curated «Автор месяца» nomination.
+  AUTHOR_OF_MONTH
+  /// Invited into a special project / collab.
+  SPECIAL_PROJECT
+}
+
+enum ComplaintTargetType {
+  USER
+  EVENT
+  REQUEST
+  // A general support request not about a specific user/event — targetId is
+  // set to the reporter's own id (see ComplaintsService.create) so the
+  // column can stay required instead of adding a nullable special case.
+  SUPPORT
+  POST
+  STORY
+}
+
+enum ComplaintStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+// ---------------------------------------------------------------------------
+// User
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(uuid())
+  phone         String   @unique
+  phoneVerified Boolean  @default(false)
+  name          String?
+  age           Int?
+  city          String?
+  avatarUrl     String?
+  bio           String? // "О себе"
+  whatICook     String? // host-specific, e.g. "Паста, выпечка, завтраки, десерты"
+  /// Public social profile links for trust: { instagram, telegram, vk, ... }
+  socialLinks   Json?
+  photos        String[] @default([])
+  rating        Int      @default(100) // display cache: hostRating if any host reviews, else guest
+  hostRating    Int      @default(100) // 0-100 from reviews where targetRole=HOST
+  hostReviewsCount Int   @default(0)
+  guestRating   Int      @default(100) // 0-100 from reviews where targetRole=GUEST
+  guestReviewsCount Int  @default(0)
+  eventsCount   Int      @default(0)
+  reviewsCount  Int      @default(0) // hostReviewsCount + guestReviewsCount
+  /// Cached author-path level 0–6 (see users/author-path.ts). Used for feed boost.
+  authorLevel   Int      @default(0)
+  /// YYYY-MM of current «Автор месяца» title (null if not current).
+  authorOfMonthPeriod String?
+  /// Curated invite into special projects / brand collabs.
+  specialProject Boolean @default(false)
+  /// Paid Organizer Pro subscription end (null = not subscribed).
+  organizerProUntil DateTime?
+  memberSince   DateTime @default(now())
+  isBlocked     Boolean  @default(false)
+  isAdmin       Boolean  @default(false)
+  role          Role     @default(USER) // kept in sync with isAdmin by AuthService/seed
+  yandexId      String?  @unique // set once the user links "Войти через Яндекс"
+  vkId          String?  @unique // set once the user links "Войти через VK"
+  googleId      String?  @unique // Google / Firebase Auth (google.com)
+  appleId       String?  @unique // Apple / Firebase Auth (apple.com)
+  /// Apple refresh token for Sign in with Apple revoke on account deletion.
+  appleRefreshToken String?
+  /// Firebase Auth uid (for Admin deleteUser on account deletion).
+  firebaseUid   String?  @unique
+  /// Last registered Firebase Cloud Messaging device token (one device for now).
+  fcmToken      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // relations
+  hostedEvents     Event[]            @relation("HostedEvents")
+  applications     Application[]      @relation("UserApplications")
+  guestRequests    GuestRequest[]     @relation("AuthoredRequests")
+  targetedRequests GuestRequest[]     @relation("TargetedRequests")
+  requestOffers    RequestOffer[]     @relation("HostOffers")
+  chatParticipants ChatParticipant[]
+  messages         Message[]          @relation("SentMessages")
+  reviewsGiven     Review[]           @relation("ReviewsGiven")
+  reviewsReceived  Review[]           @relation("ReviewsReceived")
+  placeReviewsGiven PlaceReview[]     @relation("PlaceReviewsGiven")
+  notifications    Notification[]
+  badges           UserBadge[]
+  complaintsFiled  Complaint[]        @relation("ComplaintsFiled")
+  refreshTokens    RefreshToken[]
+  favorites        Favorite[]
+  paymentMethods   PaymentMethod[]
+  transactions     Transaction[]
+  adminActions     AdminActionLog[]   @relation("AdminActor")
+  following        UserFollow[]       @relation("UserFollowing")
+  followers        UserFollow[]       @relation("UserFollowers")
+  blocking         UserBlock[]        @relation("UserBlocking")
+  blockedBy        UserBlock[]        @relation("UserBlockedBy")
+  authorOfMonthAwards AuthorOfMonth[]
+  posts            Post[]
+  postLikes        PostLike[]
+  postComments     PostComment[]
+  postSaves        PostSave[]
+  stories          Story[]
+  storyViews       StoryView[]
+
+  @@index([city])
+  @@index([authorLevel])
+  @@index([authorOfMonthPeriod])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model AuthCode {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+enum TelegramLoginStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+}
+
+// Bridges the "open our Telegram bot, share your contact" login flow: the
+// app creates a PENDING row and deep-links into the bot with its id; the bot
+// flips it to VERIFIED (storing freshly-issued tokens) once the shared
+// Telegram contact's phone number is confirmed, and the app polls for that.
+model TelegramLoginSession {
+  id           String              @id @default(uuid())
+  // Null = one-tap "Continue with Telegram": no phone was pre-entered, so
+  // whatever the shared Telegram contact provides is accepted as-is.
+  phone        String?
+  status       TelegramLoginStatus @default(PENDING)
+  chatId       String?
+  userId       String?
+  accessToken  String?
+  refreshToken String?
+  createdAt    DateTime            @default(now())
+  expiresAt    DateTime
+
+  @@index([status])
+}
+
+enum OAuthProvider {
+  YANDEX
+  VK
+}
+
+// Same "open a provider login page, poll for completion" shape as
+// TelegramLoginSession above, but for standard web OAuth2 (Yandex ID / VK
+// ID): the app calls start(), opens `authorizeUrl` in a browser, the
+// provider redirects to our server's callback (never back into the app),
+// and the app polls status/:sessionId until it sees VERIFIED + tokens.
+model OAuthLoginSession {
+  id           String              @id @default(uuid())
+  provider     OAuthProvider
+  status       TelegramLoginStatus @default(PENDING)
+  userId       String?
+  accessToken  String?
+  refreshToken String?
+  createdAt    DateTime            @default(now())
+  expiresAt    DateTime
+
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Event
+// ---------------------------------------------------------------------------
+
+model Event {
+  id     String @id @default(uuid())
+  hostId String
+  host   User   @relation("HostedEvents", fields: [hostId], references: [id], onDelete: Cascade)
+
+  format      EventFormat
+  title       String
+  description String?
+  photos      String[]    @default([])
+  tags        String[]    @default([]) // "Ужин", "Алкоголь", "Настолки", "BBQ", "Дегустация"
+
+  /// Window start — when the host begins waiting for guests.
+  startAt DateTime
+  /// Window end — optional; null means a point-in-time event (legacy).
+  endAt DateTime?
+
+  address String?
+  lat     Float?
+  lng     Float?
+  /// Catalog slug from GET /cities (minsk, moscow, …).
+  citySlug String @default("minsk")
+
+  /// Venue / spot linked for place reviews (optional until geocoded).
+  placeId String?
+  place   Place?  @relation(fields: [placeId], references: [id], onDelete: SetNull)
+
+  minGuests          Int @default(1)
+  maxGuests          Int @default(1)
+  currentGuestsCount Int @default(0)
+  /// Set once when minGuests threshold is first crossed (idempotent notify).
+  thresholdNotifiedAt DateTime?
+
+  priceType   PriceType @default(FREE)
+  priceAmount Int?
+
+  /// Paid feed/map promotion window end.
+  boostedUntil DateTime?
+  boostedAt    DateTime?
+
+  /// Impression counter for host analytics.
+  viewCount Int @default(0)
+
+  requirementGender    GenderRequirement @default(ANY)
+  requirementMinAge    Int?
+  requirementMaxAge    Int?
+  requirementInterests String[]          @default([])
+
+  pickupMethod  PickupMethod?
+  pickupAddress String?
+  /// Approximate weight of one portion, grams — takeaway dishes only, optional.
+  portionWeightGrams Int?
+
+  status EventStatus @default(ACTIVE)
+
+  /// Matched moderation keyword(s); admin-only hint when PENDING_REVIEW.
+  moderationNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications Application[]
+  chat         Chat?
+  reviews      Review[]
+  placeReviews PlaceReview[]
+  favoritedBy  Favorite[]
+  transactions Transaction[]
+
+  @@index([hostId])
+  @@index([status])
+  @@index([startAt])
+  @@index([endAt])
+  @@index([lat, lng])
+  @@index([citySlug])
+  @@index([placeId])
+}
+
+// ---------------------------------------------------------------------------
+// Place (venue / spot) — reviews from people who attended events here
+// ---------------------------------------------------------------------------
+
+model Place {
+  id         String  @id @default(uuid())
+  name       String
+  address    String?
+  lat        Float
+  lng        Float
+  citySlug   String  @default("minsk")
+  /// Optional provider id (e.g. Yandex org) for dedup.
+  externalId String? @unique
+
+  /// Average of PlaceReview.stars (1.0–5.0).
+  ratingAvg     Float @default(0)
+  reviewsCount  Int   @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events  Event[]
+  reviews PlaceReview[]
+  posts   Post[]
+  stories Story[]
+
+  @@index([citySlug])
+  @@index([lat, lng])
+  @@index([name])
+}
+
+model PlaceReview {
+  id         String @id @default(uuid())
+  placeId    String
+  place      Place  @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  eventId    String
+  event      Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reviewerId String
+  reviewer   User   @relation("PlaceReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  /// 1–5 stars.
+  stars   Int
+  comment String?
+  photos  String[] @default([])
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, reviewerId])
+  @@index([placeId])
+  @@index([reviewerId])
+}
+
+// ---------------------------------------------------------------------------
+// Application (заявка на участие в событии)
+// ---------------------------------------------------------------------------
+
+model Application {
+  id        String            @id @default(uuid())
+  eventId   String
+  event     Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User              @relation("UserApplications", fields: [userId], references: [id], onDelete: Cascade)
+  status    ApplicationStatus @default(PENDING)
+  message   String?
+  /// Guest's pickup choice for a takeaway order — PICKUP_ONLY ("Заберу сам")
+  /// or MEET_AT_DOOR ("Мне нужна доставка"). Null for in-person events.
+  pickupMethod PickupMethod?
+  /// Guest confirmed they attended the meeting.
+  guestConfirmedAt DateTime?
+  /// Host confirmed this guest attended.
+  hostConfirmedAt  DateTime?
+  /// Host marked this accepted guest as a no-show (in-person only).
+  hostMarkedNoShowAt DateTime?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([eventId, userId])
+  @@index([userId])
+  @@index([eventId])
+}
+
+// ---------------------------------------------------------------------------
+// Guest requests (запрос от гостя)
+// ---------------------------------------------------------------------------
+
+model GuestRequest {
+  id       String @id @default(uuid())
+  authorId String
+  author   User   @relation("AuthoredRequests", fields: [authorId], references: [id], onDelete: Cascade)
+
+  type          GuestRequestType @default(GENERAL)
+  title         String
+  description   String?
+  portionsCount Int?
+  budgetType    PriceType        @default(FREE)
+  budgetAmount  Int?
+  /// Start of the guest’s desired window (or point-in-time if no end).
+  requestedAt   DateTime
+  /// Optional end of the desired window.
+  requestedEndAt DateTime?
+  address       String?
+  photos        String[]         @default([])
+
+  targetHostId String?
+  targetHost   User?   @relation("TargetedRequests", fields: [targetHostId], references: [id], onDelete: SetNull)
+
+  status GuestRequestStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  offers RequestOffer[]
+
+  @@index([authorId])
+  @@index([targetHostId])
+  @@index([type])
+  @@index([status])
+}
+
+model RequestOffer {
+  id        String              @id @default(uuid())
+  requestId String
+  request   GuestRequest        @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  hostId    String
+  host      User                @relation("HostOffers", fields: [hostId], references: [id], onDelete: Cascade)
+  status    RequestOfferStatus  @default(PENDING)
+  message   String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([requestId, hostId])
+  @@index([requestId])
+  @@index([hostId])
+}
+
+// ---------------------------------------------------------------------------
+// Chat
+// ---------------------------------------------------------------------------
+
+model Chat {
+  id        String   @id @default(uuid())
+  eventId   String?  @unique
+  event     Event?   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  participants ChatParticipant[]
+  messages     Message[]
+}
+
+model ChatParticipant {
+  chatId   String
+  chat     Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@id([chatId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  chatId     String
+  chat       Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  /// Empty for media-only messages; otherwise plain text / caption.
+  text       String   @default("")
+  /// Relative `/uploads/...` path when this is a voice message.
+  audioUrl   String?
+  /// Voice duration in milliseconds (null for text).
+  durationMs Int?
+  /// Photo or file attachment (`/uploads/...`).
+  attachmentUrl  String?
+  /// Original filename for non-image attachments.
+  attachmentName String?
+  /// MIME type, e.g. image/jpeg or application/pdf.
+  attachmentMime String?
+  createdAt  DateTime @default(now())
+
+  readBy MessageRead[]
+
+  @@index([chatId, createdAt])
+}
+
+model MessageRead {
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  readAt    DateTime @default(now())
+
+  @@id([messageId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Review (двусторонняя система оценок)
+// ---------------------------------------------------------------------------
+
+model Review {
+  id         String           @id @default(uuid())
+  eventId    String
+  event      Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reviewerId String
+  reviewer   User             @relation("ReviewsGiven", fields: [reviewerId], references: [id], onDelete: Cascade)
+  targetId   String
+  target     User             @relation("ReviewsReceived", fields: [targetId], references: [id], onDelete: Cascade)
+  targetRole ReviewTargetRole
+
+  // host categories: taste, atmosphere, hospitality, cleanliness, sociability,
+  // matchesDescription, organization, vibe (weighted overall — see rating-score.ts)
+  // guest categories: punctuality, politeness, communicability, ruleFollowing, tidiness, overallImpression
+  // each value 0-100
+  scores Json
+
+  overallScore Int // 0-100, computed avg of scores
+  comment      String?
+  createdAt    DateTime @default(now())
+
+  @@unique([eventId, reviewerId, targetId])
+  @@index([targetId])
+  @@index([eventId])
+}
+
+// ---------------------------------------------------------------------------
+// Notification
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String?
+  payload   Json?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+}
+
+// ---------------------------------------------------------------------------
+// Badges (достижения)
+// ---------------------------------------------------------------------------
+
+model Badge {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  title       String
+  description String?
+  iconUrl     String?
+
+  users UserBadge[]
+}
+
+model UserBadge {
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId  String
+  badge    Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  earnedAt DateTime @default(now())
+
+  @@id([userId, badgeId])
+}
+
+/// Curated monthly spotlight (ops picks from strong authors).
+model AuthorOfMonth {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Calendar month key, e.g. "2026-08".
+  period    String
+  note      String?
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@unique([period])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Complaints (жалобы, admin panel)
+// ---------------------------------------------------------------------------
+
+model Complaint {
+  id         String              @id @default(uuid())
+  reporterId String
+  reporter   User                @relation("ComplaintsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetType ComplaintTargetType
+  targetId   String
+  reason     String
+  status     ComplaintStatus     @default(OPEN)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Favorites (избранные события)
+// ---------------------------------------------------------------------------
+
+model Favorite {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId   String
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+  @@index([userId])
+}
+
+/// User A follows user B (host). Used by the «Подписаться» button on profiles.
+model UserFollow {
+  id          String   @id @default(uuid())
+  followerId  String
+  follower    User     @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+/// User A blocks user B. Blocking is symmetric in effect (each side stops
+/// seeing the other's events/requests) even though the row itself only
+/// records the direction the block button was pressed from.
+model UserBlock {
+  id        String   @id @default(uuid())
+  blockerId String
+  blocker   User     @relation("UserBlocking", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("UserBlockedBy", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+// ---------------------------------------------------------------------------
+// Payments — DEV-only mock provider. No real card data is ever stored: only
+// a display mask. No real money moves; every transaction is flagged
+// isTestMode and can be flipped between SUCCESS/FAILED from the admin panel.
+// ---------------------------------------------------------------------------
+
+enum PaymentMethodType {
+  CARD
+  DONATION
+  FREE
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum TransactionKind {
+  EVENT_TICKET
+  EVENT_BOOST
+  ORGANIZER_PRO
+}
+
+enum PaymentProvider {
+  MOCK
+  YOOKASSA
+}
+
+model PaymentMethod {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      PaymentMethodType
+  cardMask  String? // e.g. "**** 4242" — display only, never a real PAN
+  isDefault Boolean           @default(false)
+  createdAt DateTime          @default(now())
+
+  @@index([userId])
+}
+
+model Transaction {
+  id               String             @id @default(uuid())
+  userId           String
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId          String?
+  event            Event?             @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  amount           Int
+  currency         String             @default("BYN")
+  kind             TransactionKind    @default(EVENT_TICKET)
+  status           TransactionStatus  @default(PENDING)
+  provider         PaymentProvider    @default(MOCK)
+  externalId       String?
+  confirmationUrl  String?
+  meta             Json?
+  isTestMode       Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([kind])
+  @@index([externalId])
+}
+
+// ---------------------------------------------------------------------------
+// Admin action log (audit trail for admin-only mutations)
+// ---------------------------------------------------------------------------
+
+enum AdminActionType {
+  BLOCK_USER
+  UNBLOCK_USER
+  CANCEL_EVENT
+  DELETE_REVIEW
+  RESOLVE_COMPLAINT
+  DISMISS_COMPLAINT
+  SET_TRANSACTION_STATUS
+  SET_AUTHOR_OF_MONTH
+  SET_SPECIAL_PROJECT
+  BOOST_EVENT
+  GRANT_ORGANIZER_PRO
+  APPROVE_EVENT
+  REJECT_EVENT
+}
+
+model AdminActionLog {
+  id         String          @id @default(uuid())
+  adminId    String
+  admin      User            @relation("AdminActor", fields: [adminId], references: [id], onDelete: Cascade)
+  action     AdminActionType
+  targetType String // "User" | "Event" | "Review" | "Complaint" | "Transaction"
+  targetId   String
+  details    Json?
+  createdAt  DateTime        @default(now())
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+}
+
+// ---------------------------------------------------------------------------
+// Social feed (posts + Instagram-like stories)
+// ---------------------------------------------------------------------------
+
+model Post {
+  id        String     @id @default(uuid())
+  authorId  String
+  author    User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  imageUrl  String
+  caption   String?
+  placeId   String?
+  place     Place?     @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  createdAt DateTime   @default(now())
+  likes     PostLike[]
+  comments  PostComment[]
+  saves     PostSave[]
+
+  @@index([authorId, createdAt])
+  @@index([createdAt])
+  @@index([placeId])
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([postId])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+  @@index([authorId])
+}
+
+model PostSave {
+  id        String   @id @default(uuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId, createdAt])
+  @@index([postId])
+}
+
+model Story {
+  id        String       @id @default(uuid())
+  authorId  String
+  author    User         @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  /// Still / poster (always set). For video stories this is a cover frame.
+  imageUrl  String
+  /// Optional short video (boomerang / clip). Viewer prefers this when set.
+  videoUrl  String?
+  placeId   String?
+  place     Place?       @relation(fields: [placeId], references: [id], onDelete: SetNull)
+  createdAt DateTime     @default(now())
+  expiresAt DateTime
+  views     StoryView[]
+
+  @@index([authorId, expiresAt])
+  @@index([expiresAt])
+  @@index([placeId])
+}
+
+model StoryView {
+  id        String   @id @default(uuid())
+  storyId   String
+  story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, storyId])
+  @@index([storyId])
+}
