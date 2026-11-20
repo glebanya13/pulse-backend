@@ -1,99 +1,205 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# ⚡ Pulse Backend — City Events & Social Discovery API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Pulse Backend is a high-performance RESTful API and real-time WebSocket backend engineered with [NestJS 11](https://nestjs.com/), [TypeScript](https://www.typescriptlang.org/), [Prisma ORM](https://www.prisma.io/), and [PostgreSQL](https://www.postgresql.org/). It powers the **Pulse (Пульс)** urban event and nightlife discovery mobile platform, providing event management, geospatial venue search, real-time event chatrooms, multi-provider OAuth, Telegram moderation bots, and Firebase push notification broadcasting.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 🚀 Features
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **🎉 Event & Venue Lifecycle Engine**: Complete management of nightlife events, concerts, festivals, cultural meetups, venue profiles, working hours, and media galleries.
+- **💬 Real-Time Live Chatrooms**: WebSocket server powered by `@nestjs/platform-socket.io` handling event-specific chatrooms, direct messaging, and live attendee coordination.
+- **🤖 Automated Telegram Moderation Bot**: Integrated `node-telegram-bot-api` alerting administrators about newly submitted events, user complaints, and organizer verification requests.
+- **🔐 Multi-Provider Authentication**: Flexible authentication system supporting Apple Sign-In, Google OAuth, Telegram Login, and JWT access/refresh token rotation.
+- **🗺️ Geospatial & Multi-City Architecture**: City-level partitioning (Minsk and beyond) with geographical coordinates, radius calculations, and venue clustering.
+- **🔔 Firebase Push Notifications**: Background push notification dispatcher via `firebase-admin` for event start reminders, new chat messages, and moderation status updates.
+- **🛡️ Community Moderation & Complaints**: Automated spam detection, review auditing, and user reporting pipelines to maintain content quality.
+- **🐳 Production Ready**: Containerized with Docker and Docker Compose, reverse proxied by [Caddy](https://caddyserver.com/) with automated HTTPS.
+- **📑 OpenAPI / Swagger Documentation**: Interactive API testing playground available at `/api/docs`.
 
-## Project setup
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: [NestJS 11](https://nestjs.com/) (Express HTTP adapter, modular architecture)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Database & ORM**: [PostgreSQL 16](https://www.postgresql.org/) with [Prisma ORM 5](https://www.prisma.io/)
+- **Real-Time Communication**: [Socket.IO](https://socket.io/) (`@nestjs/websockets`, `@nestjs/platform-socket.io`)
+- **Authentication**: [Passport.js](http://www.passportjs.org/), JWT (`@nestjs/jwt`), and bcrypt
+- **External Integrations**: Firebase Admin SDK (FCM notifications), Telegram Bot API (`node-telegram-bot-api`)
+- **Deployment & Proxy**: Docker, Docker Compose, and Caddy Web Server
+- **Documentation**: [Swagger / OpenAPI 3](https://swagger.io/) (`@nestjs/swagger`)
+- **Testing**: [Jest](https://jestjs.io/) (Unit, Integration, and E2E tests)
+
+---
+
+## 📦 Installation & Setup
+
+### Prerequisites
+- [Node.js](https://nodejs.org/) (`>= 20.0.0`)
+- [npm](https://www.npmjs.com/) (`>= 10.0.0`)
+- [PostgreSQL](https://www.postgresql.org/) (`>= 15.0`) or Docker
+
+### Getting Started
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/glebanya13/pulse-backend.git
+   cd pulse-backend
+   ```
+
+2. **Configure Environment Variables**:
+   Copy the example environment configuration:
+   ```bash
+   cp .env.example .env
+   ```
+   Set up your PostgreSQL database URL, JWT secret, and integration credentials:
+   ```env
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/pulse?schema=public"
+   PORT=3000
+   JWT_SECRET="your-super-secure-jwt-secret"
+   JWT_EXPIRES_IN="15m"
+   REFRESH_SECRET="your-super-secure-refresh-secret"
+   REFRESH_EXPIRES_IN="30d"
+
+   # Telegram Bot (for admin alerts)
+   TELEGRAM_BOT_TOKEN="your-telegram-bot-token"
+   TELEGRAM_ADMIN_CHAT_ID="your-chat-id"
+
+   # Firebase Service Account (JSON path or inline)
+   FIREBASE_SERVICE_ACCOUNT_PATH="./firebase-adminsdk.json"
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+4. **Initialize Database & Seed Data**:
+   ```bash
+   # Generate Prisma client
+   npx prisma generate
+
+   # Run database migrations
+   npx prisma migrate dev
+
+   # Seed default cities, sample events, and categories
+   npm run seed
+   ```
+
+5. **Start the API Server**:
+   ```bash
+   # Development mode with hot-reload
+   npm run start:dev
+
+   # Production build and launch
+   npm run build
+   npm run start:prod
+   ```
+
+6. **Interactive Documentation**:
+   Visit [http://localhost:3000/api/docs](http://localhost:3000/api/docs) to explore all REST endpoints.
+
+---
+
+## 🐳 Docker Deployment
+
+To spin up PostgreSQL, the NestJS API, and Caddy reverse proxy via Docker Compose:
 
 ```bash
-$ npm install
+# Start all containers in background
+docker compose up -d --build
+
+# View application logs
+docker compose logs -f api
 ```
 
-## Compile and run the project
+---
+
+## 💻 Usage & Testing
 
 ```bash
-# development
-$ npm run start
+# Run unit tests
+npm run test
 
-# watch mode
-$ npm run start:dev
+# Run tests with live watch mode
+npm run test:watch
 
-# production mode
-$ npm run start:prod
+# Run test coverage report
+npm run test:cov
+
+# Run end-to-end (E2E) integration tests
+npm run test:e2e
+
+# Execute ESLint validation
+npm run lint
 ```
 
-## Run tests
+---
 
-```bash
-# unit tests
-$ npm run test
+## 📂 Project Structure
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```markdown
+pulse-backend/
+|-- deploy/
+|    `-- Caddyfile                  # Production Caddy reverse proxy & auto-HTTPS
+|-- prisma/
+|    |-- schema.prisma              # Database models, relations, enums & indexes
+|    |-- migrations/                # Versioned SQL migration history
+|    `-- seed.ts                    # Initial fixtures, city boundaries & categories
+|-- src/
+|    |-- admin/                     # Admin control panel, metrics & dashboard
+|    |-- applications/              # Organizer verification application flow
+|    |-- auth/                      # JWT authentication, refresh cookies, passport
+|    |-- badges/                    # Reputation & verification badges
+|    |-- chats/                     # WebSocket chat gateways & message repositories
+|    |-- cities/                    # Multi-city coordinates & boundaries
+|    |-- common/                    # Guards, interceptors, pipes, filters, decorators
+|    |-- complaints/                # User reports & moderation flags
+|    |-- events/                    # Event catalog, schedules, tickets & filtering
+|    |-- favorites/                 # User bookmarks & event wishlists
+|    |-- moderation/                # Approval workflows for user submissions
+|    |-- monetization/              # Event promotion plans & billing
+|    |-- notifications/             # Firebase Cloud Messaging push dispatch
+|    |-- oauth/                     # Apple, Google & Telegram social sign-in
+|    |-- payments/                  # Payment gateway integration & order logs
+|    |-- places/                    # Venue guide, clubs, bars & coordinates
+|    |-- prisma/                    # Injectable PrismaService database client
+|    |-- requests/                  # Event creation requests from organizers
+|    |-- reviews/                   # Venue reviews, ratings & feedback
+|    |-- social/                    # Attendee connections & social shares
+|    |-- telegram/                  # Telegram Bot moderation alert service
+|    |-- users/                     # User profile management & roles
+|    |-- app.module.ts              # Root dependency injection module
+|    `-- main.ts                    # Application bootstrap, Swagger & WebSocket setup
+|-- docker-compose.yml              # Local Docker Compose setup
+|-- docker-compose.prod.yml         # Production multi-container setup with Caddy
+|-- Dockerfile                      # Production container build
+|-- package.json                    # Project dependencies and npm scripts
+`-- tsconfig.json                   # TypeScript compiler options
 ```
 
-## Deployment
+---
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+## 🤝 Contributing
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Contributions are welcome! Please follow these steps:
+1. Fork the repository: `git fork https://github.com/glebanya13/pulse-backend.git`
+2. Create your feature branch: `git checkout -b feature/new-feature`
+3. Commit your changes: `git commit -m "feat: Add event recurrence support"`
+4. Push to branch: `git push origin feature/new-feature`
+5. Open a Pull Request.
 
-```bash
-$ npm install -g mau
-$ mau deploy
-```
+---
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 📝 License
 
-## Resources
+This project is licensed under the **MIT License**.
 
-Check out a few resources that may come in handy when working with NestJS:
+---
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## 📬 Contact
 
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+For inquiries or API support:
+- **Author**: [@glebanya13](https://github.com/glebanya13)
+- **Email**: [glebanya.com@gmail.com](mailto:glebanya.com@gmail.com)
+- **Issues**: [GitHub Issues](https://github.com/glebanya13/pulse-backend/issues)
