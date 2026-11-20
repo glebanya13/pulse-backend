@@ -1,4 +1,4 @@
-# ⚡ Pulse Backend — City Events & Social Discovery API
+# ⚡ Pulse Backend
 
 Pulse Backend is a high-performance RESTful API and real-time WebSocket backend engineered with [NestJS 11](https://nestjs.com/), [TypeScript](https://www.typescriptlang.org/), [Prisma ORM](https://www.prisma.io/), and [PostgreSQL](https://www.postgresql.org/). It powers the **Pulse (Пульс)** urban event and nightlife discovery mobile platform, providing event management, geospatial venue search, real-time event chatrooms, multi-provider OAuth, Telegram moderation bots, and Firebase push notification broadcasting.
 
